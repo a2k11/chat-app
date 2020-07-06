@@ -8,27 +8,53 @@ const $messages = document.querySelector('#messages')
 
 const messageTemplate = document.querySelector('#message-template').innerHTML
 const locationTemplate = document.querySelector('#location-template').innerHTML
+const sidebarTemplate = document.querySelector('#sidebar-template').innerHTML
 
 const { userName, room } = Qs.parse(location.search, { ignoreQueryPrefix: true })
 
+const autoScroll = () => {
+  const $newMessage = $messages.lastElementChild
+  
+  const newMessageStyles = getComputedStyle($newMessage)
+  const newMessageMargin = parseInt(newMessageStyles.marginBottom)
+  const newMessageHeight = $newMessage.offsetHeight + newMessageMargin
+
+  const visibleHeight = $messages.offsetHeight
+  const containerHeight = $messages.scrollHeight
+
+  const scrollOffset = $messages.scrollTop + visibleHeight
+
+  if (containerHeight - newMessageHeight <= scrollOffset) {
+    $messages.scrollTop = $messages.scrollHeight
+  }
+}
+
 socket.on('message', (message) => {
-  console.log(message)
   const html = Mustache.render(messageTemplate, {
     userName: message.userName,
     message: message.text,
     createdAt: moment(message.createdAt).format('hh:mm a')
   })
   $messages.insertAdjacentHTML('beforeend', html)
+  autoScroll()
 })
 
 socket.on('locationMessage', (message) => {
-  console.log(message)
   const html = Mustache.render(locationTemplate, { 
     userName: message.userName,
     url: message.url,
     createdAt: moment(message.createdAt).format('hh:mm a') 
   })
   $messages.insertAdjacentHTML('beforeend', html)
+  autoScroll()
+})
+
+socket.on('roomData', ({ room, users }) => {
+  const html = Mustache.render(sidebarTemplate, {
+    room,
+    users
+  })
+  document.querySelector('#sidebar').innerHTML = html
 })
 
 $messageForm.addEventListener('submit', (e) => {
@@ -45,8 +71,6 @@ $messageForm.addEventListener('submit', (e) => {
     if (error) {
       return console.log(error)
     }
-
-    console.log('Message delivered.')
   })
 })
 
@@ -63,7 +87,6 @@ $sendLocationButton.addEventListener('click', () => {
       longitude: position.coords.longitude
     }, () => {
       $sendLocationButton.removeAttribute('disabled')
-      console.log('Location shared.')
     })
   })
 })
